@@ -16,8 +16,23 @@
         try await Task.sleep(nanoseconds: 300_000_000)
         XCTAssertEqual(didObserve, true)
         _ = token
+
+        withActorProxy { @MainActor in
+          MainActor.assertIsolated()
+        }
+
+        withActorProxy { @GlobalActorIsolated in
+          GlobalActorIsolated.assertIsolated()
+        }
+
+        withActorProxy {
+          MainActor.assertIsolated()
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
+
       }
       .value
+
     }
 
     func testIsolationOnGlobalActor() async throws {
@@ -33,6 +48,19 @@
         try await Task.sleep(nanoseconds: 300_000_000)
         XCTAssertEqual(didObserve, true)
         _ = token
+
+        withActorProxy { @MainActor in // override isolation
+          MainActor.assertIsolated()
+        }
+
+        withActorProxy { @GlobalActorIsolated in // override with the same isolation
+          GlobalActorIsolated.assertIsolated()
+        }
+
+        withActorProxy { // inherit isolation
+          GlobalActorIsolated.assertIsolated()
+        }
+        try await Task.sleep(nanoseconds: 300_000_000)
       }
       .value
     }
@@ -52,5 +80,34 @@
   @GlobalActorIsolated
   private class GlobalActorModel {
     var count = 0
+  }
+
+  func removeIsolation(_ f: @escaping @Sendable () -> Void) -> @Sendable () -> Void {
+    return f
+  }
+
+  func withActorProxy(
+    @_inheritActorContext
+    perform operation: @escaping @isolated(any) @Sendable () -> Void
+  ) {
+    let actor = ActorProxy(base: operation.isolation)
+    Task {
+      await actor.perform {
+        removeIsolation(operation)()
+      }
+    }
+  }
+
+  private actor ActorProxy {
+    let base: (any Actor)?
+    init(base: (any Actor)?) {
+      self.base = base
+    }
+    nonisolated var unownedExecutor: UnownedSerialExecutor {
+      (base ?? MainActor.shared).unownedExecutor
+    }
+    func perform(_ operation: @Sendable () -> Void) {
+      operation()
+    }
   }
 #endif

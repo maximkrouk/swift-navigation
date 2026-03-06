@@ -1,6 +1,97 @@
 import ConcurrencyExtras
 
 #if swift(>=6)
+  /// Tracks access to properties of an observable model.
+  ///
+  /// A version of ``observe(_:_:onChange:)-(_,(T)->Void)`` that is handed the current ``UITransaction``.
+  ///
+  /// - Parameter object: Observable object to derive observation from.
+  /// - Parameter context: Access to a property to track.
+  /// - Parameter apply: Invoked when the value of a property changes
+  ///   > `onChange` is also invoked on initial call
+  /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
+  ///   is deallocated.
+  public func observe<Object: Perceptible & Sendable, Value>(
+    object: Object,
+    @_inheritActorContext
+    _ context: @escaping @isolated(any) @Sendable (Object) -> Value,
+    @_inheritActorContext
+    onChange apply: @escaping @isolated(any) @Sendable (Value, UITransaction) -> Void
+  ) -> ObserveToken {
+    _observe(
+      isolation: context.isolation,
+      { _ in _assumeNotThrowing(call: context, with: object) },
+      onChange: { _assumeNotThrowing(call: apply, with: $0, $1) }
+    )
+  }
+
+  /// Tracks access to property of an observable model.
+  ///
+  /// This function allows one to minimally observe changes in a model in order to
+  /// react to those changes. For example, if you had an observable model like so:
+  ///
+  /// ```swift
+  /// @Observable
+  /// class FeatureModel {
+  ///   var count = 0
+  /// }
+  /// ```
+  ///
+  /// Then you can use `observe` to observe changes in the model. For example, in UIKit you can
+  /// update a `UILabel`:
+  ///
+  /// ```swift
+  /// observe(model.count) { [countLabel] value in
+  ///   countLabel.text = "Count: \(value)"
+  /// }
+  /// ```
+  ///
+  /// Anytime the `count` property of the model changes the trailing closure will be invoked again,
+  /// allowing you to update the view. Further, only changes to properties accessed in the trailing
+  /// closure will be observed.
+  ///
+  /// > Note: If you are targeting Apple's older platforms (anything before iOS 17, macOS 14,
+  /// > tvOS 17, watchOS 10), then you can use our
+  /// > [Perception](http://github.com/pointfreeco/swift-perception) library to replace Swift's
+  /// > Observation framework.
+  ///
+  /// This function also works on non-Apple platforms, such as Windows, Linux, Wasm, and more. For
+  /// example, in a Wasm app you could observe changes to the `count` property to update the inner
+  /// HTML of a tag:
+  ///
+  /// ```swift
+  /// import JavaScriptKit
+  ///
+  /// var countLabel = document.createElement("span")
+  /// _ = document.body.appendChild(countLabel)
+  ///
+  /// let token = observe(model.count) { value in
+  ///   countLabel.innerText = .string("Count: \(value)")
+  /// }
+  /// ```
+  ///
+  /// And you can also build your own tools on top of `observe`.
+  ///
+  /// - Parameter object: Observable object to derive observation from.
+  /// - Parameter context: Access to a property to track.
+  /// - Parameter apply: Invoked when the value of a property changes
+  ///   > `onChange` is also invoked on initial call
+  /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
+  ///   is deallocated.
+  public func observe<Object: Perceptible & Sendable, Value>(
+    object: Object,
+    @_inheritActorContext
+    _ context: @escaping @isolated(any) @Sendable (Object) -> Value,
+    @_inheritActorContext
+    onChange apply: @escaping @isolated(any) @Sendable (Value) -> Void
+  ) -> ObserveToken {
+    _observe(
+      isolation: context.isolation,
+      { _ in _assumeNotThrowing(call: context, with: object) },
+      onChange: { value, _ in _assumeNotThrowing(call: apply, with: value) }
+    )
+  }
+
 /// Tracks access to properties of an observable model.
 ///
 /// A version of ``observe(_:onChange:)-(_,(T)->Void)`` that is handed the current ``UITransaction``.
@@ -10,11 +101,11 @@ import ConcurrencyExtras
 ///   > `onChange` is also invoked on initial call
 /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
 ///   is deallocated.
-  public func observe<T>(
+  public func observe<Value>(
     @_inheritActorContext
-    _ context: @escaping @isolated(any) @Sendable @autoclosure () -> T,
+    _ context: @escaping @isolated(any) @Sendable @autoclosure () -> Value,
     @_inheritActorContext
-    onChange apply: @escaping @isolated(any) @Sendable (UITransaction, T) -> Void
+    onChange apply: @escaping @isolated(any) @Sendable (Value, UITransaction) -> Void
   ) -> ObserveToken {
     _observe(
       isolation: context.isolation,
@@ -75,16 +166,16 @@ import ConcurrencyExtras
   ///   > `onChange` is also invoked on initial call
   /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
   ///   is deallocated.
-  public func observe<T>(
+  public func observe<Value>(
     @_inheritActorContext
-    _ context: @escaping @isolated(any) @Sendable @autoclosure () -> T,
+    _ context: @escaping @isolated(any) @Sendable @autoclosure () -> Value,
     @_inheritActorContext
-    onChange apply: @escaping @isolated(any) @Sendable (T) -> Void
+    onChange apply: @escaping @isolated(any) @Sendable (Value) -> Void
   ) -> ObserveToken {
     _observe(
       isolation: context.isolation,
       { _ in _assumeNotThrowing(call: context) },
-      onChange: { _assumeNotThrowing(call: apply, with: $1) }
+      onChange: { value, _ in _assumeNotThrowing(call: apply, with: value) }
     )
   }
 
@@ -252,7 +343,7 @@ import ConcurrencyExtras
     _observe(
       isolation: context.isolation,
       context,
-      onChange: { transaction, _ in
+      onChange: { _, transaction in
         _assumeNotThrowing(call: apply, with: transaction)
       }
     )
@@ -299,7 +390,7 @@ func _observe(
 func _observe<T>(
   isolation: (any Actor)?,
   _ context: @escaping @Sendable (_ transaction: UITransaction) -> T,
-  onChange apply: @escaping @Sendable (_ transaction: UITransaction, T) -> Void
+  onChange apply: @escaping @Sendable (T, _ transaction: UITransaction) -> Void
 ) -> ObserveToken {
   let actor = ActorProxy(base: isolation)
   let observation = onChange(
@@ -314,7 +405,7 @@ func _observe<T>(
     }
   )
 
-  apply(.current, observation.initialValue)
+  apply(observation.initialValue, .current)
   return observation.token
 }
 
@@ -376,7 +467,7 @@ func onChange(
 ///   is deallocated.
 func onChange<T>(
   of context: @escaping @Sendable (_ transaction: UITransaction) -> T,
-  perform operation: @escaping @Sendable (_ transaction: UITransaction, T) -> Void,
+  perform operation: @escaping @Sendable (T, _ transaction: UITransaction) -> Void,
   task: @escaping @Sendable (
     _ transaction: UITransaction,
     _ operation: @escaping @Sendable () -> Void
@@ -402,7 +493,7 @@ func onChange<T>(
 
       let uncheckedSendableValue = UncheckedSendable(value)
 
-      var perform: @Sendable () -> Void = { operation(transaction, uncheckedSendableValue.value) }
+      var perform: @Sendable () -> Void = { operation(uncheckedSendableValue.value, transaction) }
       for key in transaction.storage.keys {
         guard let keyType = key.keyType as? any _UICustomTransactionKey.Type
         else { continue }

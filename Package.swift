@@ -2,6 +2,12 @@
 
 import PackageDescription
 
+#if canImport(FoundationEssentials)
+  import FoundationEssentials
+#else
+  import Foundation
+#endif
+
 let package = Package(
   name: "swift-navigation",
   platforms: [
@@ -28,6 +34,12 @@ let package = Package(
       targets: ["AppKitNavigation"]
     ),
   ],
+  traits: [
+    .trait(
+      name: "Sharing",
+      description: "Enables Sharing integration with SwiftNavigation"
+    )
+  ],
   dependencies: [
     .package(url: "https://github.com/apple/swift-collections", from: "1.0.0"),
     .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.0.0"),
@@ -36,7 +48,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.3.2"),
     .package(url: "https://github.com/pointfreeco/swift-perception", "1.3.4"..<"3.0.0"),
     .package(url: "https://github.com/pointfreeco/xctest-dynamic-overlay", from: "1.4.1"),
-    .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.7.5"),
+    .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.8.0"),
   ],
   targets: [
     .target(
@@ -53,7 +65,7 @@ let package = Package(
           name: "Sharing",
           package: "swift-sharing",
           condition: .when(traits: [
-            "SwiftNavigationSharing"
+            "Sharing"
           ])
         ),
       ]
@@ -109,29 +121,13 @@ let package = Package(
   swiftLanguageModes: [.v6]
 )
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
+let enableAllTraits =
+  ProcessInfo.processInfo.environment["ENABLE_ALL_TRAITS"] != nil
+  // NB: https://github.com/SwiftPackageIndex/SwiftPackageIndex-Server/issues/2336
+  || ProcessInfo.processInfo.environment["SPI_GENERATE_DOCS"] != nil
 
-// Workaround to ensure that all traits are included in documentation. Swift Package Index adds
-// SPI_GENERATE_DOCS (https://github.com/SwiftPackageIndex/SwiftPackageIndex-Server/issues/2336)
-// when building documentation, so only tweak the default traits in this condition.
-let spiGenerateDocs = ProcessInfo.processInfo.environment["SPI_GENERATE_DOCS"] != nil
-
-// Enable all traits for other CI actions.
-let enableAllTraitsExplicit = ProcessInfo.processInfo.environment["ENABLE_ALL_TRAITS"] != nil
-
-let enableAllTraits = spiGenerateDocs || enableAllTraitsExplicit
-
-package.traits.formUnion([
-  .trait(
-    name: "SwiftNavigationSharing",
-    description: ""
-  ),
-])
-
-package.traits.insert(.default(
-  enabledTraits: Set(enableAllTraits ? package.traits.map(\.name) : [])
-))
+package.traits.insert(
+  .default(
+    enabledTraits: Set(enableAllTraits ? package.traits.map(\.name) : [])
+  )
+)

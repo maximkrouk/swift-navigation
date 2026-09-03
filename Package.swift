@@ -61,7 +61,7 @@ let package = Package(
     .package(url: "https://github.com/pointfreeco/swift-case-paths", from: "1.10.0"),
     .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.7.3"),
     .package(url: "https://github.com/pointfreeco/swift-issue-reporting", from: "2.1.0"),
-    .package(url: "https://github.com/pointfreeco/swift-perception", "2.0.12"..<"3.0.0"),
+    .package(url: "https://github.com/maximkrouk/swift-perception", "2.0.13"..<"3.0.0"),
     .package(url: "https://github.com/pointfreeco/swift-macro-testing", from: "0.7.0"),
     .package(url: "https://github.com/pointfreeco/swift-sharing", from: "2.10.1"),
     .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.0.0"),

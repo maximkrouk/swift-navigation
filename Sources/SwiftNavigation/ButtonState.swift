@@ -1,9 +1,10 @@
-import CustomDump
-import Foundation
-import IssueReporting
+public import Foundation
 
+#if CustomDump
+  import CustomDump
+#endif
 #if canImport(SwiftUI)
-  import SwiftUI
+  public import SwiftUI
 #endif
 
 public struct ButtonState<Action>: Identifiable {
@@ -85,19 +86,25 @@ public struct ButtonState<Action>: Identifiable {
       await perform(action)
     #if canImport(SwiftUI)
       case .animatedSend(let action, _):
-        var output = ""
-        customDump(self.action, to: &output, indent: 4)
-        reportIssue(
-          """
-          An animated action was performed asynchronously: …
+        if let action {
+          var output = ""
+          #if CustomDump
+            customDump(action, to: &output, indent: 4)
+          #else
+            output.append("    \(String(describing: action))")
+          #endif
+          reportIssue(
+            """
+            An animated action was performed asynchronously: …
 
-            Action:
-          \((output))
+              Action:
+            \((output))
 
-          Asynchronous actions cannot be animated. Evaluate this action in a synchronous closure, \
-          or use 'SwiftUI.withAnimation' explicitly.
-          """
-        )
+            Asynchronous actions cannot be animated. Evaluate this action in a synchronous \
+            closure, or use 'SwiftUI.withAnimation' explicitly.
+            """
+          )
+        }
         await perform(action)
     #endif
     }
@@ -177,47 +184,6 @@ public enum ButtonStateRole: Sendable {
   ///
   /// See `SwiftUI.ButtonRole.destructive` for more information.
   case destructive
-}
-
-extension ButtonState: CustomDumpReflectable {
-  public var customDumpMirror: Mirror {
-    var children: [(label: String?, value: Any)] = []
-    if let role = self.role {
-      children.append(("role", role))
-    }
-    children.append(("action", self.action))
-    children.append(("label", self.label))
-    return Mirror(
-      self,
-      children: children,
-      displayStyle: .struct
-    )
-  }
-}
-
-extension ButtonStateAction: CustomDumpReflectable {
-  public var customDumpMirror: Mirror {
-    switch self.type {
-    case .send(let action):
-      return Mirror(
-        self,
-        children: [
-          "send": action as Any
-        ],
-        displayStyle: .enum
-      )
-    #if canImport(SwiftUI)
-      case .animatedSend(let action, let animation):
-        return Mirror(
-          self,
-          children: [
-            "send": (action, animation: animation)
-          ],
-          displayStyle: .enum
-        )
-    #endif
-    }
-  }
 }
 
 extension ButtonStateAction: Equatable where Action: Equatable {}
@@ -379,9 +345,12 @@ func debugCaseOutput(_ value: Any) -> String {
       return ""
     }
   }
-
-  return (value as? CustomDebugStringConvertible)?.debugDescription
-    ?? "\(typeName(type(of: value)))\(debugCaseOutputHelp(value))"
+  #if CustomDump
+    if let description = (value as? any CustomDebugStringConvertible)?.debugDescription {
+      return description
+    }
+  #endif
+  return "\(typeName(type(of: value)))\(debugCaseOutputHelp(value))"
 }
 
 private func isUnlabeledArgument(_ label: String) -> Bool {

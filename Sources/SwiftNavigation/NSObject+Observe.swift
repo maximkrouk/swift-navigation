@@ -106,6 +106,9 @@
     /// - Parameter apply: A closure that contains properties to track and is invoked when the value
     ///   of a property changes.
     /// - Returns: A cancellation token.
+    #if !Perception
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+    #endif
     @discardableResult
     public func observe(
       _ apply: @escaping @MainActor @Sendable () -> Void
@@ -186,6 +189,9 @@
     /// - Parameter apply: A closure that contains properties to track and is invoked when the value
     ///   of a property changes.
     /// - Returns: A cancellation token.
+    #if !Perception
+      @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+    #endif
     @discardableResult
     public func observe(
       _ apply: @escaping @MainActor @Sendable (_ transaction: UITransaction) -> Void

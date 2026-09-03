@@ -1,4 +1,8 @@
-import ConcurrencyExtras
+#if Perception
+  import PerceptionCore
+#else
+  import Observation
+#endif
 
 #if swift(>=6)
   /// Tracks access to properties of an observable model.
@@ -233,6 +237,9 @@ import ConcurrencyExtras
   /// - Parameter apply: A closure that contains properties to track.
   /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
   ///   is deallocated.
+  #if !Perception
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  #endif
   public func observe(
     @_inheritActorContext
     _ apply: @escaping @isolated(any) @Sendable () -> Void
@@ -315,6 +322,9 @@ import ConcurrencyExtras
   /// - Parameter apply: A closure that contains properties to track.
   /// - Returns: A token that keeps the subscription alive. Observation is cancelled when the token
   ///   is deallocated.
+  #if !Perception
+    @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+  #endif
   public func observe(
     @_inheritActorContext
     _ apply: @escaping @isolated(any) @Sendable (_ transaction: UITransaction) -> Void
@@ -529,7 +539,15 @@ private func withRecursivePerceptionTracking(
     task(.current) {
       withRecursivePerceptionTracking(apply, task: task)
     }
-  }
+  #else
+    withObservationTracking {
+      apply(.current)
+    } onChange: {
+      task(.current) {
+        onChange(apply, task: task)
+      }
+    }
+  #endif
 }
 
 private func withRecursivePerceptionTracking<T>(
@@ -579,7 +597,7 @@ public final class ObserveToken: Sendable, HashableObject {
   public let onCancel: @Sendable () -> Void
 
   public var isCancelled: Bool {
-    _isCancelled.withValue { $0 }
+    _isCancelled.withLock { $0 }
   }
 
   public init(onCancel: @escaping @Sendable () -> Void = {}) {
@@ -596,7 +614,7 @@ public final class ObserveToken: Sendable, HashableObject {
   /// > immediately, but rather next time a change is detected by `observe` it will cease any future
   /// > observation.
   public func cancel() {
-    _isCancelled.withValue { isCancelled in
+    _isCancelled.withLock { isCancelled in
       guard !isCancelled else { return }
       defer { isCancelled = true }
       onCancel()

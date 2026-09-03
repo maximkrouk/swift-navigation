@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftUINavigation
-import XCTestDynamicOverlay
+import IssueReporting
 
 @Observable
 class ItemRowModel: Identifiable {

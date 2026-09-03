@@ -1,6 +1,6 @@
 import SwiftUI
 import UIKitNavigation
-import XCTestDynamicOverlay
+import IssueReporting
 
 @Observable
 @MainActor
@@ -8,7 +8,7 @@ class ConnectToNetworkModel: Identifiable {
   var incorrectPasswordAlertIsPresented = false
   var isConnecting = false
   var onConnect: (Network) -> Void = { _ in
-    XCTFail("ConnectToNetworkModel.onConnect unimplemented.")
+    reportIssue("ConnectToNetworkModel.onConnect unimplemented.")
   }
   let network: Network
   var password = ""

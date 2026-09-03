@@ -1,5 +1,5 @@
 {
-  "originHash" : "07401eca8af746eb4e078fafa549a5319bd739129358d3ee590516675a7874e4",
+  "originHash" : "5433c885be3d2e77f7644580326dce1db26c5fd854b22733e6379c20c5688b15",
   "pins" : [
     {
       "identity" : "swift-case-paths",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/maximkrouk/swift-perception",
       "state" : {
-        "branch" : "cctx/myo-local",
-        "revision" : "b3e591bbad8dcd0492b4bc6ee00bf229156c7ada"
+        "revision" : "597afd46249f4a71885b95d26b26cc5b893daf32",
+        "version" : "2.0.12"
       }
     },
     {

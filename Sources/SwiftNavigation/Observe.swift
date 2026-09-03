@@ -526,6 +526,9 @@ func onChange<T>(
 // MARK: - Perception
 // Low level functions for recursive perception tracking
 
+#if !Perception
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 private func withRecursivePerceptionTracking(
   _ apply: @escaping @Sendable (_ transaction: UITransaction) -> Void,
   task: @escaping @Sendable (
@@ -533,23 +536,28 @@ private func withRecursivePerceptionTracking(
     _ operation: @escaping @Sendable () -> Void
   ) -> Void
 ) {
-  withPerceptionTracking {
-    apply(.current)
-  } onChange: {
-    task(.current) {
-      withRecursivePerceptionTracking(apply, task: task)
+  #if Perception
+    withPerceptionTracking {
+      apply(.current)
+    } onChange: {
+      task(.current) {
+        withRecursivePerceptionTracking(apply, task: task)
+      }
     }
   #else
     withObservationTracking {
       apply(.current)
     } onChange: {
       task(.current) {
-        onChange(apply, task: task)
+        withRecursivePerceptionTracking(apply, task: task)
       }
     }
   #endif
 }
 
+#if !Perception
+  @available(iOS 17, macOS 14, tvOS 17, watchOS 10, *)
+#endif
 private func withRecursivePerceptionTracking<T>(
   of context: @escaping @Sendable (_ transaction: UITransaction) -> T,
   perform operation: @escaping @Sendable (_ transaction: UITransaction, T) -> Void,
@@ -558,17 +566,31 @@ private func withRecursivePerceptionTracking<T>(
     _ operation: @escaping @Sendable () -> Void
   ) -> Void
 ) -> T {
-  withPerceptionTracking {
-    context(.current)
-  } onChange: {
-    task(.current) {
-      operation(.current, withRecursivePerceptionTracking(
-        of: context,
-        perform: operation,
-        task: task
-      ))
+  #if Perception
+    withPerceptionTracking {
+      context(.current)
+    } onChange: {
+      task(.current) {
+        operation(.current, withRecursivePerceptionTracking(
+          of: context,
+          perform: operation,
+          task: task
+        ))
+      }
     }
-  }
+  #else
+    withObservationTracking {
+      context(.current)
+    } onChange: {
+      task(.current) {
+        operation(.current, withRecursivePerceptionTracking(
+          of: context,
+          perform: operation,
+          task: task
+        ))
+      }
+    }
+  #endif
 }
 
 // MARK: - ObserveToken

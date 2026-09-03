@@ -1,7 +1,6 @@
 #if canImport(ObjectiveC)
   import Dispatch
-  import ObjectiveC
-  import ConcurrencyExtras
+  public import ObjectiveC
 
   @MainActor
   extension NSObject {

@@ -1,7 +1,6 @@
 import SwiftNavigation
 import Perception
 import XCTest
-import ConcurrencyExtras
 
 class ObserveTests: XCTestCase {
   #if swift(>=6)
@@ -136,5 +135,4 @@ fileprivate class A: @unchecked Sendable {
 fileprivate class B: @unchecked Sendable {
   var value: Int = 0
 }
-
 

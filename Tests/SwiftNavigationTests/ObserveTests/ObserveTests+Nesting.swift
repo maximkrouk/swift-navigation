@@ -1,7 +1,6 @@
 import SwiftNavigation
 import Perception
 import XCTest
-import ConcurrencyExtras
 
 #if !os(WASI)
   class NestingObserveTests: XCTestCase {
